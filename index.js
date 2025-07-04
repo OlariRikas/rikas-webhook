@@ -1,3 +1,29 @@
+nano index.js
+const express = require('express');
+const app = express();
+const bodyParser = require('body-parser');
+
+// Erinevad body-parser'id
+app.use(bodyParser.json()); // application/json
+app.use(bodyParser.urlencoded({ extended: true })); // application/x-www-form-urlencoded
+app.use(bodyParser.text()); // text/plain
+
+// Webhook endpoint
+app.post('/vubook-webhook', (req, res) => {
+  console.log('📥 Saabus broneering VUBOOKist:');
+
+  // Trükime päised ja keha
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+
+  res.sendStatus(200);
+});
+
+// Käivita server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server töötab aadressil http://localhost:${PORT}`);
+});
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
