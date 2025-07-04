@@ -1,11 +1,14 @@
 const express = require('express');
-const app = express();
-const bodyParser = require('body-parser');
 const axios = require('axios');
+const bodyParser = require('body-parser');
 
-app.use(bodyParser.json());
+const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.text());
+app.use(bodyParser.json());
+
+// Botpress konfiguratsioon
+const BOTPRESS_URL = 'https://webhook.botpress.cloud/7e5334c1-07d2-4070-83ed-7d897b5d2fda';
+const BOTPRESS_TOKEN = 'bp_pat_KPBXgMopcYsa46jwuSPKaeKCyi4Zmv1rOonW';
 
 app.post('/vubook-webhook', async (req, res) => {
   console.log('📥 Saabus broneering VUBOOKist:');
@@ -13,30 +16,42 @@ app.post('/vubook-webhook', async (req, res) => {
   console.log('Body:', req.body);
 
   const guestName = req.body.guest_name || 'Külaline';
-  const phone = req.body.phone || '+37255555555'; // ← TESTI NUMBER, vajadusel muuda
+  const phone = (req.body.phone || '').replace(/\s/g, '');
 
-  const message = {
-    phone: phone,
-    text: `Tere, ${guestName}! Täname sind broneeringu eest. Kui vajad soovitusi linnas või abi, anna julgelt teada.`
-  };
+  if (!phone.startsWith('+')) {
+    console.error('❌ Vigane telefoninumber:', phone);
+    return res.status(400).send('Vale number');
+  }
+
+  const message = `Tere ${guestName}! Aitäh broneeringu eest. Kui vajad abi, kirjuta meile siia WhatsAppi. Soovitame ka tegevusi, restorane ja üritusi linnas! 😊`;
 
   try {
-    await axios.post('https://webhook.botpress.cloud/7e5334c1-07d2-4070-83ed-7d897b5d2fda', message, {
+    const response = await axios.post(BOTPRESS_URL, {
+      type: 'text',
+      payload: {
+        text: message
+      },
+      channel: 'whatsapp',
+      phone: phone
+    }, {
       headers: {
-        Authorization: 'Bearer bp_pat_KPBXgMopcYsa46jwuSPKaeKCyi4Zmv1rOonW',
+        'Authorization': `Bearer ${BOTPRESS_TOKEN}`,
         'Content-Type': 'application/json'
       }
     });
-    console.log('✅ WhatsAppi sõnum saadetud läbi Botpressi');
-  } catch (error) {
-    console.error('❌ WhatsAppi saatmine ebaõnnestus:', error.message);
-  }
 
-  res.sendStatus(200);
+    console.log('✅ WhatsAppi sõnum saadetud:', response.status, response.data);
+    res.send('OK');
+  } catch (error) {
+    console.error('❌ WhatsAppi saatmine ebaõnnestus:', error.response?.status || error.message);
+    console.error('🛠️ Täpsem info:', error.response?.data || 'Pole lisainfot');
+    res.sendStatus(500);
+  }
 });
 
+// Käivita server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server töötab aadressil http://localhost:${PORT}`);
+  console.log(`🚀 Server töötab aadressil http://localhost:${PORT}`);
 });
 
