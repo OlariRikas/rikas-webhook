@@ -1,19 +1,22 @@
 const express = require('express');
-const axios = require('axios');
 const bodyParser = require('body-parser');
+const axios = require('axios');
 
 const app = express();
-app.use(bodyParser.urlencoded({ extended: true }));
+
+// Tugi JSON ja x-www-form-urlencoded päringutele
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-// Botpress konfiguratsioon
-const BOTPRESS_URL = 'https://webhook.botpress.cloud/7e5334c1-07d2-4070-83ed-7d897b5d2fda';
-const BOTPRESS_TOKEN = 'bp_pat_KPBXgMopcYsa46jwuSPKaeKCyi4Zmv1rOonW';
+// Botpress WhatsAppi webhooki aadress
+const BOTPRESS_URL = 'https://webhook.botpress.cloud/dfb5f95a-4682-449a-bdfd-b8e33064448d';
+const BOTPRESS_TOKEN = ''; // jäta tühjaks, kui ei ole vaja tokenit
 
+// VUBOOK Webhooki endpoint
 app.post('/vubook-webhook', async (req, res) => {
-  console.log('📥 Saabus broneering VUBOOKist:');
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
+  console.log("📥 Saabus broneering VUBOOKist:");
+  console.log("Headers:", req.headers);
+  console.log("Body:", req.body);
 
   const guestName = req.body.guest_name || 'Külaline';
   const phone = (req.body.phone || '').replace(/\s/g, '');
@@ -35,7 +38,7 @@ app.post('/vubook-webhook', async (req, res) => {
       phone: phone
     }, {
       headers: {
-        'Authorization': `Bearer ${BOTPRESS_TOKEN}`,
+        'Authorization': BOTPRESS_TOKEN ? `Bearer ${BOTPRESS_TOKEN}` : '',
         'Content-Type': 'application/json'
       }
     });
@@ -49,7 +52,7 @@ app.post('/vubook-webhook', async (req, res) => {
   }
 });
 
-// Käivita server
+// Serveri käivitamine
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server töötab aadressil http://localhost:${PORT}`);
