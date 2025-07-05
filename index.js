@@ -1,55 +1,48 @@
 const express = require('express');
-const axios = require('axios');
 const bodyParser = require('body-parser');
-
+const axios = require('axios');
+const crypto = require('crypto');
 const app = express();
 
-// Toetame vormiandmeid (VUBOOK saadab application/x-www-form-urlencoded)
+const BOTPRESS_URL = 'https://webhook.botpress.cloud/dfb5f95a-4682-449a-bdfd-b8e33064448d';
+const BOTPRESS_TOKEN = 'bp_pat_gs6tY0C7ftfJM4zFgREjywTQHGdREu7BOkgj';
+const WEBHOOK_SECRET = 'rikashotels2025';
+
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
 
-// Botpressi Webhook URL ja Secret
-const BOTPRESS_URL = 'https://webhook.botpress.cloud/af21a8a8-6e0a-4a72-a110-4f2b9c52b42f';
-const BOTPRESS_SECRET = 'rikashotels2025';
-
-// VUBOOK Webhooki endpoint
 app.post('/vubook-webhook', async (req, res) => {
   console.log('📥 Saabus broneering VUBOOKist:');
   console.log('Headers:', req.headers);
   console.log('Body:', req.body);
 
-  const guestName = req.body.guest_name || req.body.klient || 'Külaline';
-  const phoneRaw = req.body.phone || '';
-  const phone = phoneRaw.replace(/\s/g, '');
-
-  if (!phone.startsWith('+')) {
-    console.error('❌ Vigane telefoninumber:', phone);
-    return res.status(400).send('Vale number');
-  }
-
-  const message = `Tere ${guestName}! Aitäh broneeringu eest. Kui vajad abi, kirjuta meile siia WhatsAppi. Soovitame ka tegevusi, restorane ja üritusi linnas! 😊`;
-
   try {
-    const response = await axios.post(BOTPRESS_URL, {
-      type: 'text',
-      payload: {
-        text: message
-      },
-      channel: 'whatsapp',
-      phone: phone
-    }, {
-      headers: {
-        'Authorization': `Bearer ${process.env.BOTPRESS_TOKEN || 'PASTE_YOUR_TOKEN_IF_NEEDED'}`,
-        'Content-Type': 'application/json',
-        'x-bp-secret': BOTPRESS_SECRET
-      }
-    });
+    // Kontrolli allkirja, kui olemas
+    const expectedSignature = crypto
+      .createHmac('sha256', WEBHOOK_SECRET)
+      .update(JSON.stringify(req.body))
+      .digest('hex');
+    const receivedSignature = req.headers['x-signature'];
 
-    console.log('✅ WhatsAppi sõnum saadetud:', response.status, response.data);
+    if (receivedSignature && receivedSignature !== expectedSignature) {
+      console.error('❌ Vale allkiri:', receivedSignature);
+      return res.status(401).send('Vale allkiri');
+    }
+
+    // Proovi push_data JSON välja võtta
+    let pushData;
+    try {
+      pushData = JSON.parse(req.body.push_data);
+      console.log('📦 push_data JSON:', pushData);
+    } catch (err) {
+      console.error('❌ Ei saanud push_data JSON-iks muuta:', err.message);
+      return res.status(400).send('push_data pole korrektne JSON');
+    }
+
+    // Saadame tagasi vastuse
     res.send('OK');
+
   } catch (error) {
-    console.error('❌ WhatsAppi saatmine ebaõnnestus:', error.response?.status || error.message);
-    console.error('🛠️ Täpsem info:', error.response?.data || 'Pole lisainfot');
+    console.error('❌ Töötlemisel tekkis viga:', error.message);
     res.sendStatus(500);
   }
 });
