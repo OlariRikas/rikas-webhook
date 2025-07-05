@@ -1,20 +1,25 @@
 const express = require('express');
 const axios = require('axios');
 const bodyParser = require('body-parser');
+
 const app = express();
 
-// Middleware, et toetada nii JSON kui URL-encoded päringuid
-app.use(bodyParser.json());
+// Toetame vormiandmeid (VUBOOK saadab application/x-www-form-urlencoded)
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 
-// Botpressi andmed
-const BOTPRESS_URL = 'https://webhook.botpress.cloud/dfb5f95a-4682-449a-bdfd-b8e33064448d';
-const BOTPRESS_TOKEN = 'SINU_TURVATOKEN_SIIN'; // <-- asenda oma tokeniga
+// Botpressi Webhook URL ja Secret
+const BOTPRESS_URL = 'https://webhook.botpress.cloud/af21a8a8-6e0a-4a72-a110-4f2b9c52b42f';
+const BOTPRESS_SECRET = 'rikashotels2025';
 
-// VUBOOK webhooki endpoint
+// VUBOOK Webhooki endpoint
 app.post('/vubook-webhook', async (req, res) => {
+  console.log('📥 Saabus broneering VUBOOKist:');
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+
   const guestName = req.body.guest_name || req.body.klient || 'Külaline';
-  const phoneRaw = req.body.phone || req.body.telefon || '+37256843337';
+  const phoneRaw = req.body.phone || '';
   const phone = phoneRaw.replace(/\s/g, '');
 
   if (!phone.startsWith('+')) {
@@ -34,8 +39,9 @@ app.post('/vubook-webhook', async (req, res) => {
       phone: phone
     }, {
       headers: {
-        'Authorization': `Bearer ${BOTPRESS_TOKEN}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${process.env.BOTPRESS_TOKEN || 'PASTE_YOUR_TOKEN_IF_NEEDED'}`,
+        'Content-Type': 'application/json',
+        'x-bp-secret': BOTPRESS_SECRET
       }
     });
 
@@ -48,8 +54,8 @@ app.post('/vubook-webhook', async (req, res) => {
   }
 });
 
-// Serveri käivitamine
-const PORT = process.env.PORT || 3000;
+// Käivita server
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`🚀 Server töötab aadressil http://localhost:${PORT}`);
 });
