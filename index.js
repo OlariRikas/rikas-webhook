@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const axios = require('axios');
 
 const app = express();
+ HEAD
 
 // Tugi JSON ja x-www-form-urlencoded päringutele
 app.use(bodyParser.json());
@@ -11,6 +12,15 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Botpress WhatsAppi webhooki aadress
 const BOTPRESS_URL = 'https://webhook.botpress.cloud/dfb5f95a-4682-449a-bdfd-b8e33064448d';
 const BOTPRESS_TOKEN = ''; // jäta tühjaks, kui ei ole vaja tokenit
+
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// 👉 Asenda see oma Botpressi WhatsApp webhook URL-iga
+const BOTPRESS_URL = 'https://webhook.botpress.cloud/dfb5f95a-4682-449a-bdfd-b8e33064448d';
+
+// 👉 Asenda see oma tegeliku Botpress tokeniga
+const BOTPRESS_TOKEN = 'YOUR_BOTPRESS_TOKEN_HERE'; // NB! lisa siia oma tegelik token
+ 0252e120cc54d92fd698b47f1caf86fc0b59674a
 
 // VUBOOK Webhooki endpoint
 app.post('/vubook-webhook', async (req, res) => {
@@ -52,9 +62,14 @@ app.post('/vubook-webhook', async (req, res) => {
   }
 });
 
+ HEAD
 // Serveri käivitamine
+
+// 🔥 Käivita server
+ 0252e120cc54d92fd698b47f1caf86fc0b59674a
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server töötab aadressil http://localhost:${PORT}`);
 });
+
 
