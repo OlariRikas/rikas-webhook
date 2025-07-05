@@ -1,35 +1,21 @@
 const express = require('express');
-const bodyParser = require('body-parser');
 const axios = require('axios');
-
+const bodyParser = require('body-parser');
 const app = express();
- HEAD
 
-// Tugi JSON ja x-www-form-urlencoded päringutele
+// Middleware, et toetada nii JSON kui URL-encoded päringuid
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Botpress WhatsAppi webhooki aadress
+// Botpressi andmed
 const BOTPRESS_URL = 'https://webhook.botpress.cloud/dfb5f95a-4682-449a-bdfd-b8e33064448d';
-const BOTPRESS_TOKEN = ''; // jäta tühjaks, kui ei ole vaja tokenit
+const BOTPRESS_TOKEN = 'SINU_TURVATOKEN_SIIN'; // <-- asenda oma tokeniga
 
-app.use(bodyParser.urlencoded({ extended: true }));
-
-// 👉 Asenda see oma Botpressi WhatsApp webhook URL-iga
-const BOTPRESS_URL = 'https://webhook.botpress.cloud/dfb5f95a-4682-449a-bdfd-b8e33064448d';
-
-// 👉 Asenda see oma tegeliku Botpress tokeniga
-const BOTPRESS_TOKEN = 'YOUR_BOTPRESS_TOKEN_HERE'; // NB! lisa siia oma tegelik token
- 0252e120cc54d92fd698b47f1caf86fc0b59674a
-
-// VUBOOK Webhooki endpoint
+// VUBOOK webhooki endpoint
 app.post('/vubook-webhook', async (req, res) => {
-  console.log("📥 Saabus broneering VUBOOKist:");
-  console.log("Headers:", req.headers);
-  console.log("Body:", req.body);
-
-  const guestName = req.body.guest_name || 'Külaline';
-  const phone = (req.body.phone || '').replace(/\s/g, '');
+  const guestName = req.body.guest_name || req.body.klient || 'Külaline';
+  const phoneRaw = req.body.phone || req.body.telefon || '+37256843337';
+  const phone = phoneRaw.replace(/\s/g, '');
 
   if (!phone.startsWith('+')) {
     console.error('❌ Vigane telefoninumber:', phone);
@@ -48,7 +34,7 @@ app.post('/vubook-webhook', async (req, res) => {
       phone: phone
     }, {
       headers: {
-        'Authorization': BOTPRESS_TOKEN ? `Bearer ${BOTPRESS_TOKEN}` : '',
+        'Authorization': `Bearer ${BOTPRESS_TOKEN}`,
         'Content-Type': 'application/json'
       }
     });
@@ -62,14 +48,9 @@ app.post('/vubook-webhook', async (req, res) => {
   }
 });
 
- HEAD
 // Serveri käivitamine
-
-// 🔥 Käivita server
- 0252e120cc54d92fd698b47f1caf86fc0b59674a
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server töötab aadressil http://localhost:${PORT}`);
 });
-
 
