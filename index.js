@@ -1,71 +1,91 @@
 const express = require('express');
-const bodyParser = require('body-parser');
 const axios = require('axios');
-
+const crypto = require('crypto');
+const bodyParser = require('body-parser');
 const app = express();
+const port = process.env.PORT || 10000;
+
+// Webhooki secret
+const BOTPRESS_SECRET = 'rikashotels2025';
+
+// Botpressi andmed
+const BOT_ID = 'dfb5f95a-4682-449a-bdfd-b8e33064448d';
+const BOTPRESS_WEBHOOK_URL = `https://webhook.botpress.cloud/${BOT_ID}`;
+const PERSONAL_TOKEN = 'bp_pat_gs6tY0C7ftfJM4zFgREjywTQHGdREu7BOkgj'; // <- Ära jaga avalikult!
+
+// Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-
-const BOTPRESS_URL = 'https://webhook.botpress.cloud/dfb5f95a-4682-449a-bdfd-b8e33064448d';
-const BOTPRESS_TOKEN = 'bp_pat_gs6tY0C7ftfJM4zFgREjywTQHGdREu7BOkgj';
 
 app.post('/vubook-webhook', async (req, res) => {
   console.log('📥 Saabus broneering VUBOOKist:');
   console.log('Headers:', req.headers);
   console.log('Body:', req.body);
 
-  let pushData = req.body;
-
-  // Kui push_data on olemas stringina, proovi seda parsimisega
-  if (typeof req.body.push_data === 'string') {
-    try {
-      pushData = JSON.parse(req.body.push_data);
-      console.log('📦 push_data JSON:', pushData);
-    } catch (err) {
-      console.error('❌ push_data JSON parsimine ebaõnnestus:', err.message);
-      return res.status(400).send('Vale push_data formaat');
-    }
-  }
-
-  const guestName = pushData.guest_name || 'Külaline';
-  const phoneRaw = pushData.phone || '';
-
-  // Eemalda tühikud algusest/lõpust ja vahelt
-  const phone = phoneRaw.trim().replace(/\s/g, '');
-
-  if (!phone.startsWith('+')) {
-    console.error('❌ Vigane telefoninumber:', phone);
-    return res.status(400).send('Vale number');
-  }
-
-  const message = `Tere ${guestName}! Aitäh broneeringu eest. Kui vajad abi, kirjuta meile siia WhatsAppi. Soovitame ka tegevusi, restorane ja üritusi linnas! 😊`;
-
   try {
-    const response = await axios.post(BOTPRESS_URL, {
-      type: 'text',
+    let push_data = req.body.push_data;
+
+    if (!push_data) {
+      console.log('❌ push_data puudub!');
+      return res.status(400).send('Missing push_data');
+    }
+
+    // Parse push_data JSON
+    const parsedData = JSON.parse(push_data);
+    console.log('📦 push_data JSON:', parsedData);
+
+    // Töötle telefoninumber
+    let rawPhone = parsedData.phone || '';
+    rawPhone = rawPhone.trim();
+    if (!rawPhone.startsWith('+')) {
+      rawPhone = '+' + rawPhone;
+    }
+
+    // Kontrolli numbri pikkust
+    if (rawPhone.length < 10) {
+      console.log('❌ Vigane telefoninumber:', rawPhone);
+      return res.status(400).send('Invalid phone number');
+    }
+
+    // Valmistame triggeri payloadi
+    const triggerPayload = {
+      type: 'trigger',
       payload: {
-        text: message
-      },
-      channel: 'whatsapp',
-      phone: phone
-    }, {
+        name: 'send_whatsapp_booking_confirmation',
+        data: {
+          guest_name: parsedData.guest_name,
+          phone: rawPhone
+        }
+      }
+    };
+
+    // Allkiri
+    const signature = crypto
+      .createHmac('sha256', BOTPRESS_SECRET)
+      .update(JSON.stringify(triggerPayload))
+      .digest('hex');
+
+    // POST Botpressi
+    const response = await axios.post(BOTPRESS_WEBHOOK_URL, triggerPayload, {
       headers: {
-        'Authorization': `Bearer ${BOTPRESS_TOKEN}`,
+        Authorization: `Bearer ${PERSONAL_TOKEN}`,
+        'X-Bp-Signature': signature,
         'Content-Type': 'application/json'
       }
     });
 
-    console.log('✅ WhatsAppi sõnum saadetud:', response.status, response.data);
-    res.send('OK');
+    console.log('✅ WhatsAppi sõnum saadetud!', response.status);
+    res.status(200).send('OK');
   } catch (error) {
-    console.error('❌ WhatsAppi saatmine ebaõnnestus:', error.response?.status || error.message);
-    console.error('🛠️ Täpsem info:', error.response?.data || 'Pole lisainfot');
-    res.sendStatus(500);
+    console.error('❌ WhatsAppi saatmine ebaõnnestus:', error.message);
+    if (error.response) {
+      console.error('🛠️ Täpsem info:', error.response.data);
+    }
+    res.status(500).send('Serveri viga');
   }
 });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server töötab aadressil http://localhost:${PORT}`);
+app.listen(port, () => {
+  console.log(`🚀 Server töötab aadressil http://localhost:${port}`);
 });
 
