@@ -1,68 +1,51 @@
-// ✅ Täielik webhooki kood: VUBOOK -> Botpress WhatsApp
+// ✅ Täielik webhooki kood, mis:
+// 1. Saab VUBOOKist push_data (reservation ID)
+// 2. Saadab selle info Botpressile WhatsAppi šablooni kaudu
+
 const express = require('express');
 const axios = require('axios');
-require('dotenv').config(); // Laeb .env faili väärtused
-const app = express();
+const dotenv = require('dotenv');
+dotenv.config();
 
+const app = express();
 const port = process.env.PORT || 3000;
 
-// ⬇️ Botpressi konfiguratsioon .env failist
+// ⬇️ Botpressi konfiguratsioon
 const BOTPRESS_WEBHOOK_URL = process.env.BOTPRESS_WEBHOOK_URL;
 const BOTPRESS_TOKEN = process.env.BOTPRESS_TOKEN;
+const WHATSAPP_TEMPLATE = 'booking_confirmation';
 
-// ✅ Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Funktsioon: Pärib VUBOOKist reservation detailid
-async function fetchReservationDetails(reservationId) {
-  try {
-    const response = await axios.post(`${process.env.VUBOOK_API_URL}/get`, {
-      reservation_id: reservationId,
-      api_key: process.env.VUBOOK_API_KEY
-    });
-
-    return response.data;
-  } catch (error) {
-    console.error("❌ Viga VUBOOK API päringul:", error.response?.data || error.message);
-    return null;
-  }
-}
-
-// ✅ Webhook endpoint
 app.post('/vubook-webhook', async (req, res) => {
   console.log("📥 Saabus broneering VUBOOKist:");
   console.log("Headers:", req.headers);
 
   const data = req.body;
-  let reservationId;
 
   try {
-    // Kontrolli ja parsi push_data
+    // Kontrolli kas push_data on olemas ja JSON
+    let reservationId;
     if (typeof data.push_data === 'string') {
       const parsed = JSON.parse(data.push_data);
       reservationId = parsed.reservation;
       console.log("📦 push_data JSON:", parsed);
     } else {
-      return res.status(400).send("❌ push_data puudub või pole string");
+      return res.status(400).send("Vigane push_data");
     }
 
-    // ✅ Pärime VUBOOK API-st päris andmed
-    const bookingDetails = await fetchReservationDetails(reservationId);
-    if (!bookingDetails) {
-      return res.status(500).send('VUBOOK API viga');
-    }
-
+    // ⚠️ Hardcoded testandmed (kuni VUBOOK API päring lisandub)
     const bookingInfo = {
-      phone: bookingDetails.guest_phone || '+37256843337',
+      phone: '+37256843337',
       booking_id: reservationId,
-      guest_name: bookingDetails.guest_name || 'Külaline',
-      checkin_date: bookingDetails.checkin_date || 'kuupäev puudub'
+      guest_name: 'Külaline',
+      checkin_date: 'kuupäev puudub'
     };
 
     console.log("📤 Saadame Botpressile:", bookingInfo);
 
-    // ✅ Saadame Botpressile WhatsAppi jaoks
+    // Saada Botpressile
     await axios.post(BOTPRESS_WEBHOOK_URL, bookingInfo, {
       headers: {
         Authorization: `Bearer ${BOTPRESS_TOKEN}`,
@@ -77,7 +60,6 @@ app.post('/vubook-webhook', async (req, res) => {
   }
 });
 
-// ✅ Käivitame serveri
 app.listen(port, () => {
   console.log(`🚀 Webhook server töötab aadressil http://localhost:${port}`);
 });
