@@ -1,54 +1,35 @@
 const express = require('express');
-const bodyParser = require('body-parser');
 const axios = require('axios');
 const app = express();
 
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+const port = process.env.PORT || 3000;
 
-const BOTPRESS_WEBHOOK = "https://webhook.botpress.cloud/af21a8a8-6e0a-4a72-a110-4f2b9c52b42f";
-const VUBOOK_API_KEY = "wb_51e1c740-3b92-11eb-8a4b-001a4a5c09cf";
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.post('/vubook-webhook', async (req, res) => {
+  console.log("📥 Saabus broneering VUBOOKist:");
+  console.log("Headers:", req.headers);
+
+  const data = req.body;
+
   try {
-    const pushData = JSON.parse(req.body.push_data);
-    const reservationId = pushData.reservation;
+    // Kui push_data on olemas ja string, parsi JSON
+    if (data.push_data && typeof data.push_data === 'string') {
+      const parsed = JSON.parse(data.push_data);
+      console.log("📦 push_data JSON:", parsed);
+    } else {
+      console.log("ℹ️ push_data puudub või pole string. Täis body:", data);
+    }
 
-    console.log("📥 Uus broneering:", reservationId);
-
-    const response = await axios.post(
-      "https://kapi.wubook.net/kp/reservations/fetch_one_reservation",
-      new URLSearchParams({ id: reservationId }).toString(),
-      {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "x-api-key": VUBOOK_API_KEY,
-        }
-      }
-    );
-
-    const reservation = response.data.data;
-
-    const payload = {
-      phone: "+37256843337",
-      booking_id: reservationId,
-      guest_name: "Olari",
-      checkin_date: reservation.rooms[0].dfrom
-    };
-
-    console.log("📤 Saadame Botpressile:", payload);
-
-    await axios.post(BOTPRESS_WEBHOOK, payload, {
-      headers: { "Content-Type": "application/json" }
-    });
-
-    res.sendStatus(200);
-  } catch (err) {
-    console.error("❌ Viga:", err.message);
-    res.sendStatus(500);
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('❌ Viga JSON parsimisel:', error.message);
+    res.status(500).send('Serveri viga');
   }
 });
 
-app.listen(3000, () => {
-  console.log('🚀 Webhook server töötab aadressil http://localhost:3000');
+app.listen(port, () => {
+  console.log(`🚀 Webhook server töötab aadressil http://localhost:${port}`);
 });
+
