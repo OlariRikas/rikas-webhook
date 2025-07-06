@@ -1,17 +1,11 @@
 const express = require('express');
-const axios = require('axios');
-const crypto = require('crypto');
 const bodyParser = require('body-parser');
+const crypto = require('crypto');
+const axios = require('axios');
+require('dotenv').config();
+
 const app = express();
-const port = process.env.PORT || 10000;
-
-// Webhooki secret
-const BOTPRESS_SECRET = 'rikashotels2025';
-
-// Botpressi andmed
-const BOT_ID = 'dfb5f95a-4682-449a-bdfd-b8e33064448d';
-const BOTPRESS_WEBHOOK_URL = `https://webhook.botpress.cloud/${BOT_ID}`;
-const PERSONAL_TOKEN = 'bp_pat_gs6tY0C7ftfJM4zFgREjywTQHGdREu7BOkgj'; // <- Ära jaga avalikult!
+const PORT = process.env.PORT || 10000;
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -23,69 +17,73 @@ app.post('/vubook-webhook', async (req, res) => {
   console.log('Body:', req.body);
 
   try {
-    let push_data = req.body.push_data;
+    const rawPushData = req.body.push_data;
 
-    if (!push_data) {
-      console.log('❌ push_data puudub!');
-      return res.status(400).send('Missing push_data');
+    if (!rawPushData) {
+      return res.status(400).send('❌ push_data puudub');
     }
 
-    // Parse push_data JSON
-    const parsedData = JSON.parse(push_data);
-    console.log('📦 push_data JSON:', parsedData);
-
-    // Töötle telefoninumber
-    let rawPhone = parsedData.phone || '';
-    rawPhone = rawPhone.trim();
-    if (!rawPhone.startsWith('+')) {
-      rawPhone = '+' + rawPhone;
+    let parsed;
+    try {
+      parsed = JSON.parse(rawPushData);
+    } catch (err) {
+      return res.status(400).send('❌ push_data pole korrektne JSON');
     }
 
-    // Kontrolli numbri pikkust
-    if (rawPhone.length < 10) {
-      console.log('❌ Vigane telefoninumber:', rawPhone);
-      return res.status(400).send('Invalid phone number');
+    console.log('📦 push_data JSON:', parsed);
+
+    const guestName = parsed.guest_name || 'Külaline';
+    let phone = parsed.phone || '';
+
+    phone = phone.replace(/\s+/g, '');
+
+    if (!phone || !phone.startsWith('+')) {
+      console.error('❌ Vigane telefoninumber:', phone);
+      return res.status(400).send('❌ Vigane telefoninumber');
     }
 
-    // Valmistame triggeri payloadi
-    const triggerPayload = {
-      type: 'trigger',
-      payload: {
-        name: 'send_whatsapp_booking_confirmation',
-        data: {
-          guest_name: parsedData.guest_name,
-          phone: rawPhone
-        }
-      }
+    const payload = {
+      type: 'template',
+      template: {
+        name: 'booking_confirmation',
+        language: { code: 'en_US' },
+        components: [
+          {
+            type: 'body',
+            parameters: [{ type: 'text', text: guestName }]
+          }
+        ]
+      },
+      to: phone,
+      headers: { 'Content-Type': 'application/json' }
     };
 
-    // Allkiri
     const signature = crypto
-      .createHmac('sha256', BOTPRESS_SECRET)
-      .update(JSON.stringify(triggerPayload))
+      .createHmac('sha256', 'rikashotels2025')
+      .update(JSON.stringify(payload))
       .digest('hex');
 
-    // POST Botpressi
-    const response = await axios.post(BOTPRESS_WEBHOOK_URL, triggerPayload, {
-      headers: {
-        Authorization: `Bearer ${PERSONAL_TOKEN}`,
-        'X-Bp-Signature': signature,
-        'Content-Type': 'application/json'
+    const response = await axios.post(
+      'https://api.botpress.cloud/v1/messages',
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.BOTPRESS_TOKEN}`,
+          'X-Botpress-Signature': signature,
+          'Content-Type': 'application/json'
+        }
       }
-    });
+    );
 
-    console.log('✅ WhatsAppi sõnum saadetud!', response.status);
-    res.status(200).send('OK');
-  } catch (error) {
-    console.error('❌ WhatsAppi saatmine ebaõnnestus:', error.message);
-    if (error.response) {
-      console.error('🛠️ Täpsem info:', error.response.data);
-    }
-    res.status(500).send('Serveri viga');
+    console.log('✅ WhatsAppi sõnum saadetud:', response.data);
+    res.send('OK');
+  } catch (err) {
+    console.error('❌ WhatsAppi saatmine ebaõnnestus:', err.message);
+    res.status(500).send('❌ Serveri viga');
   }
 });
 
-app.listen(port, () => {
-  console.log(`🚀 Server töötab aadressil http://localhost:${port}`);
+app.listen(PORT, () => {
+  console.log(`🚀 Server töötab aadressil http://localhost:${PORT}`);
 });
 
