@@ -1,0 +1,17 @@
+const crypto = require('crypto');
+
+const secret = 'rikashotels2025';
+const payload = JSON.stringify({
+  phone: "+37256843337",
+  booking_id: "23829977",
+  guest_name: "Olari",
+  checkin_date: "06/07/2025"
+});
+
+const signature = crypto
+  .createHmac('sha256', secret)
+  .update(payload)
+  .digest('hex');
+
+console.log(signature);
+
