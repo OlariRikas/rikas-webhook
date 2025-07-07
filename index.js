@@ -6,10 +6,13 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
+// ⬇️ .env failist tulevad andmed
 const BOTPRESS_WEBHOOK_URL = process.env.BOTPRESS_WEBHOOK_URL;
 const BOTPRESS_TOKEN = process.env.BOTPRESS_TOKEN;
 const VUBOOK_API_KEY = process.env.VUBOOK_API_KEY;
 const VUBOOK_API_URL = process.env.VUBOOK_API_URL;
+
+const WHATSAPP_TEMPLATE = 'booking_confirmation';
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -21,38 +24,37 @@ app.post('/vubook-webhook', async (req, res) => {
   const data = req.body;
 
   try {
-    // 1. Võta reservation ID
     let reservationId;
     if (typeof data.push_data === 'string') {
       const parsed = JSON.parse(data.push_data);
       reservationId = parsed.reservation;
       console.log("📦 push_data JSON:", parsed);
     } else {
-      return res.status(400).send("Vigane push_data");
+      return res.status(400).send("❌ push_data puudub või on vale formaadis");
     }
 
-    // 2. Küsi VUBOOK API kaudu broneeringu andmed
-    const vubookResponse = await axios.post(`${VUBOOK_API_URL}/fetch`, {
+    // 📡 VUBOOK API päring, et saada külalise andmed
+    const vubookResponse = await axios.post(`${VUBOOK_API_URL}/get`, {
       apikey: VUBOOK_API_KEY,
-      rid: reservationId
+      id: reservationId
     });
 
-    const info = vubookResponse.data;
-    const guest = info.guest || {};
-    const checkin = info.date_arrival || '';
-    const phone = guest.phone || '';
-    const name = guest.name || 'Külaline';
+    const reservationData = vubookResponse.data;
+
+    const guestName = reservationData?.guest_name || 'Külaline';
+    const phone = reservationData?.phone || '';
+    const checkin = reservationData?.checkin || '';
 
     const bookingInfo = {
       phone: phone,
       booking_id: reservationId,
-      guest_name: name,
+      guest_name: guestName,
       checkin_date: checkin
     };
 
     console.log("📤 Saadame Botpressile:", bookingInfo);
 
-    // 3. Saada Botpressile
+    // Saada Botpressile
     await axios.post(BOTPRESS_WEBHOOK_URL, bookingInfo, {
       headers: {
         Authorization: `Bearer ${BOTPRESS_TOKEN}`,
