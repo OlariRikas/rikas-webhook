@@ -1,6 +1,6 @@
 // ✅ Täielik webhooki kood, mis:
 // 1. Saab VUBOOKist push_data (reservation ID)
-// 2. Pärib VUBOOK API kaudu broneeringu andmed
+// 2. Pärib VUBOOK API kaudu broneeringu andmed (SOAP XML)
 // 3. Saadab need Botpressile WhatsAppi šablooni kaudu
 
 const express = require('express');
@@ -43,12 +43,18 @@ app.post('/vubook-webhook', async (req, res) => {
 
     console.log("📡 Pärime broneeringut WuBookist...");
 
-    const response = await axios.post(VUBOOK_API_URL, {
-      method: 'fetch_reservation',
-      apikey: VUBOOK_API_KEY,
-      id: reservationId
-    }, {
-      headers: { 'Content-Type': 'application/json' }
+    const xmlPayload = `
+      <methodCall>
+        <methodName>fetch_reservation</methodName>
+        <params>
+          <param><value><string>${VUBOOK_API_KEY}</string></value></param>
+          <param><value><int>${reservationId}</int></value></param>
+        </params>
+      </methodCall>
+    `;
+
+    const response = await axios.post(VUBOOK_API_URL, xmlPayload, {
+      headers: { 'Content-Type': 'text/xml' }
     });
 
     const xmlData = response.data;
@@ -63,10 +69,12 @@ app.post('/vubook-webhook', async (req, res) => {
     let checkin_date = '';
 
     try {
-      const resInfo = json.methodResponse.params.reservation;
-      guest_name = resInfo.guest_name || guest_name;
-      phone = resInfo.phone || phone;
-      checkin_date = resInfo.date_arrival || checkin_date;
+      const resInfo = json.methodResponse.params.param.value.struct.member;
+      for (const item of resInfo) {
+        if (item.name === 'guest_name') guest_name = item.value?.string || guest_name;
+        if (item.name === 'phone') phone = item.value?.string || phone;
+        if (item.name === 'date_arrival') checkin_date = item.value?.string || checkin_date;
+      }
     } catch (err) {
       console.warn("⚠️ Ei suutnud XML andmeid täielikult lugeda.");
     }
