@@ -1,7 +1,3 @@
-// ✅ Täielik webhooki kood, mis:
-// 1. Saab VUBOOKist push_data (reservation ID)
-// 2. Saadab selle info Botpressile WhatsAppi šablooni kaudu
-
 const express = require('express');
 const axios = require('axios');
 const dotenv = require('dotenv');
@@ -10,10 +6,10 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ⬇️ Botpressi konfiguratsioon
 const BOTPRESS_WEBHOOK_URL = process.env.BOTPRESS_WEBHOOK_URL;
 const BOTPRESS_TOKEN = process.env.BOTPRESS_TOKEN;
-const WHATSAPP_TEMPLATE = 'booking_confirmation';
+const VUBOOK_API_KEY = process.env.VUBOOK_API_KEY;
+const VUBOOK_API_URL = process.env.VUBOOK_API_URL;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -25,7 +21,7 @@ app.post('/vubook-webhook', async (req, res) => {
   const data = req.body;
 
   try {
-    // Kontrolli kas push_data on olemas ja JSON
+    // 1. Võta reservation ID
     let reservationId;
     if (typeof data.push_data === 'string') {
       const parsed = JSON.parse(data.push_data);
@@ -35,17 +31,28 @@ app.post('/vubook-webhook', async (req, res) => {
       return res.status(400).send("Vigane push_data");
     }
 
-    // ⚠️ Hardcoded testandmed (kuni VUBOOK API päring lisandub)
+    // 2. Küsi VUBOOK API kaudu broneeringu andmed
+    const vubookResponse = await axios.post(`${VUBOOK_API_URL}/fetch`, {
+      apikey: VUBOOK_API_KEY,
+      rid: reservationId
+    });
+
+    const info = vubookResponse.data;
+    const guest = info.guest || {};
+    const checkin = info.date_arrival || '';
+    const phone = guest.phone || '';
+    const name = guest.name || 'Külaline';
+
     const bookingInfo = {
-      phone: '+37256843337',
+      phone: phone,
       booking_id: reservationId,
-      guest_name: 'Külaline',
-      checkin_date: 'kuupäev puudub'
+      guest_name: name,
+      checkin_date: checkin
     };
 
     console.log("📤 Saadame Botpressile:", bookingInfo);
 
-    // Saada Botpressile
+    // 3. Saada Botpressile
     await axios.post(BOTPRESS_WEBHOOK_URL, bookingInfo, {
       headers: {
         Authorization: `Bearer ${BOTPRESS_TOKEN}`,
