@@ -6,8 +6,10 @@
 const express = require('express');
 const axios = require('axios');
 const dotenv = require('dotenv');
+const { XMLParser } = require('fast-xml-parser');
 dotenv.config();
 
+const parser = new XMLParser();
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -49,18 +51,31 @@ app.post('/vubook-webhook', async (req, res) => {
       headers: { 'Content-Type': 'application/json' }
     });
 
-    // Parseeri XML vastus või kontrolli vea sõnumit
     const xmlData = response.data;
     if (typeof xmlData === 'string' && xmlData.includes('<fault>')) {
       console.log("❌ API viga:", xmlData);
     }
 
-    // Kuna XML parserit pole, kasutame ajutiselt testandmeid
+    const json = parser.parse(xmlData);
+
+    let guest_name = 'Külaline';
+    let phone = '';
+    let checkin_date = '';
+
+    try {
+      const resInfo = json.methodResponse.params.reservation;
+      guest_name = resInfo.guest_name || guest_name;
+      phone = resInfo.phone || phone;
+      checkin_date = resInfo.date_arrival || checkin_date;
+    } catch (err) {
+      console.warn("⚠️ Ei suutnud XML andmeid täielikult lugeda.");
+    }
+
     const bookingInfo = {
-      phone: '', // ← siia lisame tulevikus XML parserist tegeliku numbri
+      phone,
       booking_id: reservationId,
-      guest_name: 'Külaline',
-      checkin_date: ''
+      guest_name,
+      checkin_date
     };
 
     console.log("📤 Saadame Botpressile:", bookingInfo);
