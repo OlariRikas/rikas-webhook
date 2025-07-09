@@ -40,7 +40,7 @@ app.post('/vubook-webhook', async (req, res) => {
 
     console.log("📡 Pärime broneeringut WuBookist...");
 
-    // Pärime broneeringu JSON API kaudu koos apy-key päisega
+    // Pärime broneeringu JSON API kaudu ilma apy-key päiseta
     const wubookResponse = await axios.post(
       VUBOOK_API_URL,
       {
@@ -50,16 +50,13 @@ app.post('/vubook-webhook', async (req, res) => {
       },
       {
         headers: {
-          'Content-Type': 'application/json',
-          'apy-key': VUBOOK_API_KEY
+          'Content-Type': 'application/json'
         }
       }
     );
 
     const responseData = wubookResponse.data;
-
-    // 🔍 Lisa täielik logimine
-    console.log("🧾 Täielik WuBook vastus:", JSON.stringify(responseData, null, 2));
+    console.log("🧾 Täielik WuBook vastus:", responseData);
 
     if (!responseData || !responseData.reservation) {
       console.warn("⚠️ Ei leidnud broneeringu detaile WuBookist.");
