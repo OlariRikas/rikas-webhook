@@ -1,26 +1,23 @@
-// ✅ Täielik webhooki kood, mis:
-// 1. Saab VUBOOKist push_data (reservation ID)
-// 2. Pärib VUBOOK API kaudu broneeringu andmed (SOAP XML)
-// 3. Saadab need Botpressile WhatsAppi šablooni kaudu
+// ✅ Uus webhooki kood Zak Essentials API jaoks (JSON)
+// Saab VUBOOKist reservation ID, toob JSON API kaudu detailid ja saadab Botpressile
 
 const express = require('express');
 const axios = require('axios');
 const dotenv = require('dotenv');
-const { XMLParser } = require('fast-xml-parser');
 dotenv.config();
 
-const parser = new XMLParser();
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ⬇️ Botpressi konfiguratsioon
+// ⬇️ Botpress konfiguratsioon
 const BOTPRESS_WEBHOOK_URL = process.env.BOTPRESS_WEBHOOK_URL;
 const BOTPRESS_TOKEN = process.env.BOTPRESS_TOKEN;
 const WHATSAPP_TEMPLATE = 'booking_confirmation';
 
-// ⬇️ VUBOOK API konfiguratsioon
-const VUBOOK_API_URL = 'https://wired.wubook.net/xrws/';
-const VUBOOK_API_KEY = process.env.VUBOOK_API_KEY;
+// ⬇️ VUBOOK API (Zak Essentials JSON API)
+const VUBOOK_API_URL = 'https://kapi.wubook.net/kp/reservations';
+const VUBOOK_API_KEY = process.env.VUBOOK_API_KEY; // Token, nt "wb_..."
+const VUBOOK_LCODE = 0; // ← Kui vajad erinevat lcode'i, muuda siit
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -43,49 +40,24 @@ app.post('/vubook-webhook', async (req, res) => {
 
     console.log("📡 Pärime broneeringut WuBookist...");
 
-    const xmlPayload = `
-      <methodCall>
-        <methodName>fetch_reservation</methodName>
-        <params>
-          <param><value><string>${VUBOOK_API_KEY}</string></value></param>
-          <param><value><int>${reservationId}</int></value></param>
-        </params>
-      </methodCall>
-    `;
-
-    const response = await axios.post(VUBOOK_API_URL, xmlPayload, {
-      headers: { 'Content-Type': 'text/xml' }
+    // Pärime broneeringu JSON API kaudu
+    const wubookResponse = await axios.post(VUBOOK_API_URL, {
+      lcode: VUBOOK_LCODE,
+      token: VUBOOK_API_KEY,
+      rid: reservationId
     });
 
-    const xmlData = response.data;
+    const responseData = wubookResponse.data;
 
-    // ⬇️ Lisa see: kogu XML logimiseks
-    console.log("📄 VUBOOK XML vastus:", xmlData);
-
-    if (typeof xmlData === 'string' && xmlData.includes('<fault>')) {
-      console.log("❌ API viga:", xmlData);
+    if (!responseData || !responseData.reservation) {
+      console.warn("⚠️ Ei leidnud broneeringu detaile WuBookist.");
     }
 
-    const json = parser.parse(xmlData);
+    const reservation = responseData.reservation || {};
 
-    let guest_name = 'Külaline';
-    let phone = '';
-    let checkin_date = '';
-
-    try {
-      const resInfo = json?.methodResponse?.params?.param?.value?.struct?.member;
-      if (Array.isArray(resInfo)) {
-        for (const item of resInfo) {
-          if (item.name === 'guest_name') guest_name = item.value?.string || guest_name;
-          if (item.name === 'phone') phone = item.value?.string || phone;
-          if (item.name === 'date_arrival') checkin_date = item.value?.string || checkin_date;
-        }
-      } else {
-        console.warn("⚠️ Ei suutnud XML andmeid täielikult lugeda (member puudub).");
-      }
-    } catch (err) {
-      console.warn("⚠️ Ei suutnud XML andmeid täielikult lugeda:", err.message);
-    }
+    const guest_name = reservation.guest_name || 'Külaline';
+    const phone = reservation.phone || '';
+    const checkin_date = reservation.date_arrival || '';
 
     const bookingInfo = {
       phone,
