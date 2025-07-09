@@ -58,6 +58,10 @@ app.post('/vubook-webhook', async (req, res) => {
     });
 
     const xmlData = response.data;
+
+    // ⬇️ Lisa see: kogu XML logimiseks
+    console.log("📄 VUBOOK XML vastus:", xmlData);
+
     if (typeof xmlData === 'string' && xmlData.includes('<fault>')) {
       console.log("❌ API viga:", xmlData);
     }
@@ -69,14 +73,18 @@ app.post('/vubook-webhook', async (req, res) => {
     let checkin_date = '';
 
     try {
-      const resInfo = json.methodResponse.params.param.value.struct.member;
-      for (const item of resInfo) {
-        if (item.name === 'guest_name') guest_name = item.value?.string || guest_name;
-        if (item.name === 'phone') phone = item.value?.string || phone;
-        if (item.name === 'date_arrival') checkin_date = item.value?.string || checkin_date;
+      const resInfo = json?.methodResponse?.params?.param?.value?.struct?.member;
+      if (Array.isArray(resInfo)) {
+        for (const item of resInfo) {
+          if (item.name === 'guest_name') guest_name = item.value?.string || guest_name;
+          if (item.name === 'phone') phone = item.value?.string || phone;
+          if (item.name === 'date_arrival') checkin_date = item.value?.string || checkin_date;
+        }
+      } else {
+        console.warn("⚠️ Ei suutnud XML andmeid täielikult lugeda (member puudub).");
       }
     } catch (err) {
-      console.warn("⚠️ Ei suutnud XML andmeid täielikult lugeda.");
+      console.warn("⚠️ Ei suutnud XML andmeid täielikult lugeda:", err.message);
     }
 
     const bookingInfo = {
