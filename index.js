@@ -59,14 +59,15 @@ app.post('/vubook-webhook', async (req, res) => {
     }
 
     const rooms = reservationData.rooms || [];
-    const guest_name = reservationData.id_human || 'Külaline';
     const checkin_date = rooms[0]?.dfrom || '';
 
     let phone = '';
+    let guest_name = 'Külaline';
     const bookerId = reservationData.booker;
 
     if (bookerId) {
       try {
+        console.log("📞 Pärime kliendi andmeid ID-ga:", bookerId);
         const customerResponse = await axios.post(
           WUBOOK_CUSTOMER_URL,
           new URLSearchParams({ id: bookerId }).toString(),
@@ -77,10 +78,23 @@ app.post('/vubook-webhook', async (req, res) => {
             }
           }
         );
-        phone = customerResponse.data?.data?.contacts?.phone || '';
+        console.log("👤 Kliendi vastus:", customerResponse.data);
+
+        const customerData = customerResponse.data?.data;
+
+        phone = customerData?.contacts?.phone || '';
+        const name = customerData?.main_info?.name || '';
+        const surname = customerData?.main_info?.surname || '';
+        guest_name = `${name} ${surname}`.trim() || 'Külaline';
+
+        if (!phone) {
+          console.warn("⚠️ Kliendi profiilis puudub telefoninumber.");
+        }
       } catch (err) {
-        console.warn("⚠️ Kliendi telefoni pärimine ebaõnnestus:", err.message);
+        console.warn("⚠️ Kliendi andmete pärimine ebaõnnestus:", err.message);
       }
+    } else {
+      console.warn("⚠️ Booker ID puudub, telefoni ei saa pärida.");
     }
 
     const bookingInfo = {
