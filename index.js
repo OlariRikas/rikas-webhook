@@ -14,10 +14,9 @@ const BOTPRESS_WEBHOOK_URL = process.env.BOTPRESS_WEBHOOK_URL;
 const BOTPRESS_TOKEN = process.env.BOTPRESS_TOKEN;
 const WHATSAPP_TEMPLATE = 'booking_confirmation';
 
-// ⬇️ VUBOOK API (Zak Essentials JSON API)
-const VUBOOK_API_URL = 'https://kapi.wubook.net/kp/reservations';
-const VUBOOK_API_KEY = process.env.VUBOOK_API_KEY; // Token, nt "wb_..."
-const VUBOOK_LCODE = 0; // ← Kui vajad erinevat lcode'i, muuda siit
+// ⬇️ WUBOOK API (Zak Essentials JSON API)
+const WUBOOK_API_URL = 'https://kapi.wubook.net/kp/reservations/fetch_one_reservation';
+const WUBOOK_API_KEY = process.env.VUBOOK_API_KEY; // Token, nt "wb_..."
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -40,17 +39,15 @@ app.post('/vubook-webhook', async (req, res) => {
 
     console.log("📡 Pärime broneeringut WuBookist...");
 
-    // Pärime broneeringu JSON API kaudu ilma apy-key päiseta
     const wubookResponse = await axios.post(
-      VUBOOK_API_URL,
-      {
-        lcode: VUBOOK_LCODE,
-        token: VUBOOK_API_KEY,
-        rid: reservationId
-      },
+      WUBOOK_API_URL,
+      new URLSearchParams({
+        id: reservationId
+      }).toString(),
       {
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'x-api-key': WUBOOK_API_KEY
         }
       }
     );
@@ -58,15 +55,16 @@ app.post('/vubook-webhook', async (req, res) => {
     const responseData = wubookResponse.data;
     console.log("🧾 Täielik WuBook vastus:", responseData);
 
-    if (!responseData || !responseData.reservation) {
+    if (!responseData || !responseData.data) {
       console.warn("⚠️ Ei leidnud broneeringu detaile WuBookist.");
     }
 
-    const reservation = responseData.reservation || {};
+    const reservation = responseData.data || {};
+    const rooms = reservation.rooms || [];
 
-    const guest_name = reservation.guest_name || 'Külaline';
-    const phone = reservation.phone || '';
-    const checkin_date = reservation.date_arrival || '';
+    const guest_name = reservation.id_human || 'Külaline';
+    const phone = ''; // API ei sisalda otse telefoninumbrit
+    const checkin_date = rooms[0]?.dfrom || '';
 
     const bookingInfo = {
       phone,
