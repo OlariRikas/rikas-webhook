@@ -58,6 +58,9 @@ app.post('/vubook-webhook', async (req, res) => {
 
     const responseData = wubookResponse.data;
 
+    // 🔍 Lisa täielik logimine
+    console.log("🧾 Täielik WuBook vastus:", JSON.stringify(responseData, null, 2));
+
     if (!responseData || !responseData.reservation) {
       console.warn("⚠️ Ei leidnud broneeringu detaile WuBookist.");
     }
