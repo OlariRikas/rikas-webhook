@@ -16,6 +16,7 @@ const WHATSAPP_TEMPLATE = 'booking_confirmation';
 
 // ⬇️ WUBOOK API (Zak Essentials JSON API)
 const WUBOOK_API_URL = 'https://kapi.wubook.net/kp/reservations/fetch_one_reservation';
+const WUBOOK_CUSTOMER_URL = 'https://kapi.wubook.net/kp/customers/fetch_one';
 const WUBOOK_API_KEY = process.env.VUBOOK_API_KEY; // Token, nt "wb_..."
 
 app.use(express.json());
@@ -39,11 +40,9 @@ app.post('/vubook-webhook', async (req, res) => {
 
     console.log("📡 Pärime broneeringut WuBookist...");
 
-    const wubookResponse = await axios.post(
+    const reservationResponse = await axios.post(
       WUBOOK_API_URL,
-      new URLSearchParams({
-        id: reservationId
-      }).toString(),
+      new URLSearchParams({ id: reservationId }).toString(),
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -52,19 +51,37 @@ app.post('/vubook-webhook', async (req, res) => {
       }
     );
 
-    const responseData = wubookResponse.data;
-    console.log("🧾 Täielik WuBook vastus:", responseData);
+    const reservationData = reservationResponse.data?.data;
+    console.log("🧾 Täielik WuBook vastus:", reservationResponse.data);
 
-    if (!responseData || !responseData.data) {
+    if (!reservationData) {
       console.warn("⚠️ Ei leidnud broneeringu detaile WuBookist.");
     }
 
-    const reservation = responseData.data || {};
-    const rooms = reservation.rooms || [];
-
-    const guest_name = reservation.id_human || 'Külaline';
-    const phone = ''; // API ei sisalda otse telefoninumbrit
+    const rooms = reservationData.rooms || [];
+    const guest_name = reservationData.id_human || 'Külaline';
     const checkin_date = rooms[0]?.dfrom || '';
+
+    let phone = '';
+    const bookerId = reservationData.booker;
+
+    if (bookerId) {
+      try {
+        const customerResponse = await axios.post(
+          WUBOOK_CUSTOMER_URL,
+          new URLSearchParams({ id: bookerId }).toString(),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'x-api-key': WUBOOK_API_KEY
+            }
+          }
+        );
+        phone = customerResponse.data?.data?.contacts?.phone || '';
+      } catch (err) {
+        console.warn("⚠️ Kliendi telefoni pärimine ebaõnnestus:", err.message);
+      }
+    }
 
     const bookingInfo = {
       phone,
