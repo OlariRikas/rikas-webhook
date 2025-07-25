@@ -1,0 +1,82 @@
+[dotenv@17.2.0] injecting env (5) from .env (tip: 🔐 encrypt with dotenvx: https://dotenvx.com)
+🚀 Webhook server töötab aadressil http://localhost:3000
+📥 Saabus broneering VUBOOKist:
+Headers: {
+  accept: 'application/json, text/plain, */*',
+  'content-type': 'application/json',
+  'user-agent': 'axios/1.10.0',
+  'content-length': '42',
+  'accept-encoding': 'gzip, compress, deflate, br',
+  host: 'localhost:3000',
+  connection: 'keep-alive'
+}
+📦 push_data JSON: { reservation: 24021672 }
+📡 Pärime broneeringut WuBookist...
+🧾 Täielik WuBook vastus: {
+  data: {
+    id: 24021672,
+    id_human: 'RO-0068',
+    booker: 31868320,
+    status: 'Cancelled',
+    expiration_date: '',
+    origin: { channel: '--' },
+    last_status_date: '18/07/2025',
+    board: 'nb',
+    created: '18/07/2025',
+    cpolicy: 'Default Policy',
+    agency: null,
+    corporate: null,
+    price: {
+      rooms: [Object],
+      extras: [Object],
+      meals: [Object],
+      total: 85.98
+    },
+    payment: { amount: 0, currency: 'EUR' },
+    taxes: {
+      rsrv_tax: [Object],
+      currency: 'EUR',
+      room_tax: [Object],
+      total: 5.98
+    },
+    rooms: [ [Object] ]
+  }
+}
+📞 Pärime kliendi andmeid ID-ga: 31868320
+👤 Kliendi vastus: {
+  data: {
+    main_info: {
+      name: 'Rikas',
+      surname: 'Olari',
+      country: 'EE',
+      city: null,
+      zipcode: null,
+      cf: null,
+      creation: '04/07/2025',
+      address: null
+    },
+    anagraphical: {
+      gender: null,
+      birth_country: null,
+      birth_city: null,
+      birthday: '20/07/2025'
+    },
+    contacts: { email: 'olari@rikas.ee', phone: '+32460944444' },
+    billing_info: {
+      address: null,
+      city: null,
+      zip: null,
+      country: null,
+      name: null,
+      vat_number: null
+    },
+    doc_data: []
+  }
+}
+📤 Saadame Botpressile: {
+  reservation_id: 24021672,
+  guest_name: 'Rikas Olari',
+  phone: '+32460944444',
+  checkin_date: '21/07/2025'
+}
+❌ Serveri viga: Request failed with status code 401

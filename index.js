@@ -4,6 +4,7 @@
 const express = require('express');
 const axios = require('axios');
 const dotenv = require('dotenv');
+const crypto = require('crypto');
 dotenv.config();
 
 const app = express();
@@ -11,8 +12,7 @@ const port = process.env.PORT || 3000;
 
 // ⬇️ Botpress konfiguratsioon
 const BOTPRESS_WEBHOOK_URL = process.env.BOTPRESS_WEBHOOK_URL;
-const BOTPRESS_TOKEN = process.env.BOTPRESS_TOKEN;
-const WHATSAPP_TEMPLATE = 'booking_confirmation';
+const BOTPRESS_SECRET = process.env.BOTPRESS_SECRET; // UUS: secret signatuuri jaoks
 
 // ⬇️ WUBOOK API (Zak Essentials JSON API)
 const WUBOOK_API_URL = 'https://kapi.wubook.net/kp/reservations/fetch_one_reservation';
@@ -98,18 +98,26 @@ app.post('/vubook-webhook', async (req, res) => {
     }
 
     const bookingInfo = {
-      phone,
-      booking_id: reservationId,
+      reservation_id: reservationId,
       guest_name,
+      phone,
       checkin_date
     };
 
     console.log("📤 Saadame Botpressile:", bookingInfo);
 
-    await axios.post(BOTPRESS_WEBHOOK_URL, bookingInfo, {
+    // 🔐 Arvuta HMAC SHA256 signatuur
+    const rawBody = JSON.stringify(bookingInfo);
+    const signature = crypto
+      .createHmac('sha256', BOTPRESS_SECRET)
+      .update(rawBody)
+      .digest('hex');
+
+    // 📬 Saada webhook Botpressile koos x-signature päisega
+    await axios.post(BOTPRESS_WEBHOOK_URL, rawBody, {
       headers: {
-        Authorization: `Bearer ${BOTPRESS_TOKEN}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'x-signature': signature
       }
     });
 
@@ -123,3 +131,4 @@ app.post('/vubook-webhook', async (req, res) => {
 app.listen(port, () => {
   console.log(`🚀 Webhook server töötab aadressil http://localhost:${port}`);
 });
+
